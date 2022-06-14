@@ -1,5 +1,6 @@
 from rest_framework import serializers
-from .models import Product, Stock, StockProduct
+# from .models import Product, Stock, StockProduct
+from logistic.models import *
 
 class ProductSerializer(serializers.ModelSerializer):
     # настройте сериализатор для продукта
@@ -42,12 +43,23 @@ class StockSerializer(serializers.ModelSerializer):
         positions = validated_data.pop('positions')
         stock = super().update(instance, validated_data)
         for position in positions:
-            items = StockProduct.objects.filter(stock=stock)
-            print('items', items)
-            for item in items:
-                print('item', item)
-                if item.product == position.get('product'):
-                    item.quantity = position.get('quantity')
-                    item.price = position.get('price')
-                    item.save()
+            if position.get('quantity') == 0:
+                StockProduct.objects.filter(
+                    product=position.get('product'),
+                    stock=stock.id
+                ).delete()
+                continue
+
+            StockProduct.objects.filter(
+                product=position.get('product'),
+                stock=stock.id
+            ).update_or_create(
+                defaults={
+                    'stock': stock,
+                    'product': position.get('product'),
+                    'quantity': position.get('quantity'),
+                    'price': position.get('price')
+                }
+            )
+
         return stock
